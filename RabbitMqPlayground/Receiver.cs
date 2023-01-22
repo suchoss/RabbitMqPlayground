@@ -1,35 +1,34 @@
 using System.Text;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 
 namespace RabbitMqPlayground;
 
-public class Sender
+public class Receiver
 {
-    private IConnection _connection;
-    private IModel _channel;
+    private RabbitConnect _rabbitConnect;
+    private EventingBasicConsumer _consumer;
 
-    private const string ExchangeName = "blablabla";
-
-    public Sender(string connectionString)
+    public Receiver(RabbitConnect rabbitConnect)
     {
-        var factory = new ConnectionFactory() { HostName = "localhost" };
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
-        _channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout, durable:true, autoDelete:false);
+        _rabbitConnect = rabbitConnect;
+        
+        _consumer = new EventingBasicConsumer(_rabbitConnect.Channel);
+        _consumer.Received += ProcessMessage;
+        
+        _rabbitConnect.Channel.BasicConsume(queue: RabbitConnect.Q1Name,
+            autoAck: true,
+            consumer: _consumer);
     }
 
-    public void SendMessage(int messageNumber)
+    private void ProcessMessage(object? sender, BasicDeliverEventArgs e)
     {
-        var message = $"message {messageNumber}";
-        var body = Encoding.UTF8.GetBytes(message);
-        // IBasicProperties props = _channel.CreateBasicProperties();
-        // props.Priority = 3;
-        _channel.BasicPublish(exchange: ExchangeName,
-            routingKey: "",
-            basicProperties: null,
-            body: body);
-        Console.WriteLine(" [x] Sent {0}", message);
+        var body = e.Body.ToArray();
+        var message = Encoding.UTF8.GetString(body);
+        Console.WriteLine($"received (autoAckReceiver) => {message}, press any key to continue ");
+        Console.ReadLine();
+
     }
 
-    
+
 }

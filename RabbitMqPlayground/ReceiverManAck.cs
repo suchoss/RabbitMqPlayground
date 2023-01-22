@@ -4,20 +4,21 @@ using RabbitMQ.Client.Events;
 
 namespace RabbitMqPlayground;
 
-public class Receiver
+public class ReceiverManAck
 {
     private RabbitConnect _rabbitConnect;
     private EventingBasicConsumer _consumer;
 
-    public Receiver(RabbitConnect rabbitConnect)
+    public ReceiverManAck(RabbitConnect rabbitConnect)
     {
         _rabbitConnect = rabbitConnect;
         
         _consumer = new EventingBasicConsumer(_rabbitConnect.Channel);
         _consumer.Received += ProcessMessage;
         
-        _rabbitConnect.Channel.BasicConsume(queue: RabbitConnect.Q1Name,
-            autoAck: true,
+        // čte z druhé fronty, aby se to nemotalo
+        _rabbitConnect.Channel.BasicConsume(queue: RabbitConnect.Q2Name,
+            autoAck: false,
             consumer: _consumer);
     }
 
@@ -25,8 +26,20 @@ public class Receiver
     {
         var body = e.Body.ToArray();
         var message = Encoding.UTF8.GetString(body);
-        Console.WriteLine($"received (autoAckReceiver) => {message}, press any key to continue ");
-        Console.ReadLine();
+        Console.WriteLine($"received (autoAckReceiver) => {message}, \n  (y) to acknowledge, other key will not acknowledge processing ");
+        var answer = Console.ReadLine();
+        if (answer == "y")
+        {
+            //acknowledge processing => remove from queue
+            _rabbitConnect.Channel.BasicAck(e.DeliveryTag, false);
+        }
+        else
+        {
+            //not confirming processing => returns back to queue
+        }
+        
+        
+        
 
     }
 
